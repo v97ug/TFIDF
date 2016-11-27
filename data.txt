@@ -1,0 +1,5 @@
+weather is fine rainy.
+weather is fine rainy.
+basketball baseball soccer baseball.
+learn you a haskell for great good.
+Today weather is sunny and cloudy. Rainly and cloudy tomorrow
