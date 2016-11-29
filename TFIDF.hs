@@ -1,44 +1,51 @@
-import Data.List
-import Data.Maybe
+import Control.Monad
 import qualified Data.Map as Map
 
-calTFIDF :: Int -> Int -> Int -> Double
-calTFIDF n tf df =
-  let n' = fromIntegral n
-      tf' = fromIntegral tf
-      df' = fromIntegral df
-  in tf' * log (n' / df')
+import Type
+import CosineSimilarity
+import CalTFIDF
 
-eachDocument :: Int -> Map.Map String Int -> [(String, Int)] -> [Double]
-eachDocument n tf = map (eachWord n tf)
+printDFWords :: [(String, Int)] -> IO ()
+printDFWords df = do
+  putStrLn "== Word List =="
+  putStrLn . unwords $ map fst df
+  putStrLn ""
 
-eachWord :: Int -> Map.Map String Int -> (String, Int) -> Double
-eachWord n tf (dfWord, dfCount) =
-  let tfValue = Map.lookup dfWord tf in
-  if isNothing tfValue then 0 else calTFIDF n (fromJust tfValue) dfCount
+printDocsAndFeatureV :: [Document] -> [Vector] -> IO ()
+printDocsAndFeatureV = zipWithM_ printEach
+  where
+    printEach :: Document -> Vector -> IO ()
+    printEach doc fv = do
+      putStrLn $ "--- Documents ---\n" ++ doc
+      putStrLn "--- Feature Vector ---"
+      print fv
+      putStrLn ""
 
-cosineSimilarity :: [Double] -> [Double] -> Double
-cosineSimilarity d1 d2 = innerProduct d1 d2 / (scalar d1  * scalar d2)
-
-innerProduct :: [Double] -> [Double] -> Double
-innerProduct d1 d2 = sum $ zipWith (*) d1 d2
-
-scalar :: [Double] -> Double
-scalar d = sqrt . sum $ map (** 2) d
+printSimilarity :: [(Document, Document, Double)] -> IO ()
+printSimilarity = mapM_ $ \(d1, d2, cosSim) -> do
+  putStrLn $ "D1 : " ++ d1
+  putStrLn $ "D2 : " ++ d2
+  putStr "similatiry : "
+  print cosSim
+  putStrLn ""
 
 main :: IO ()
 main = do
-  str <- readFile "sample.txt"
-  let list = words <$> lines str :: [[String]]
-      n = length list
-      tf = map (Map.fromList . map (\x -> (head x, length x)) . group . sort) list :: [Map.Map String Int]
-      df = map (\x -> (head x, length x)) $ group $ sort $ concatMap Map.keys tf :: [(String, Int)]
-      w = map (\oneTF -> eachDocument n oneTF df) tf
+  str <- readFile "input/sample.txt"
+  let documents = lines str :: [Document]
+      n = length documents
+      splitWords = map words documents
+      tf = calTF splitWords :: [Map.Map String Int]
+      df = calDF tf :: [(String, Int)]
+      featureVectors = map (\oneTF -> eachDocument n oneTF df) tf :: [Vector]
+      docAndVectors = zip documents featureVectors :: [(Document, Vector)]
       cosSimList = do
-        d1 <- w
-        d2 <- w
-        return $ cosineSimilarity d1 d2
-  -- print tf
-  -- print df
-  -- print w
-  print cosSimList
+        d1 <- docAndVectors
+        d2 <- docAndVectors
+        return (fst d1, fst d2, cosineSimilarity (snd d1) (snd d2))
+
+  -- 表示
+  printDFWords df
+  printDocsAndFeatureV documents featureVectors
+  putStrLn "--- cosineSimilatity ---\n"
+  printSimilarity cosSimList
